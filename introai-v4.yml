@@ -1,0 +1,22 @@
+name: introai
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - cython
+  - matplotlib
+  - jupyter
+  - nltk
+  - nb_condaw
+  - pandas
+  - pydot
+  - pydotplus
+  - scikit-learn
+  - scipy
+  - tqdm
+  - pip
+  - pip:
+    - udacity-pa>=0.2
+    - z3-solver
+    - pomegranate
