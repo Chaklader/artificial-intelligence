@@ -32,6 +32,7 @@ def play(values, result, history):
                 if y in (3, 4, 5):  startY = (y * 57) + 100
                 if y in (6, 7, 8):  startY = (y * 57) + 165
                 string_number = values[rows[y] + cols[x]]
+
                 if len(string_number) > 1 or string_number == '' or string_number == '.':
                     number = None
                 else:

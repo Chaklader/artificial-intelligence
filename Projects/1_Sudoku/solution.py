@@ -1,11 +1,11 @@
 from utils import *
+from functools import reduce
 
 row_units = [cross(r, cols) for r in rows]
 column_units = [cross(rows, c) for c in cols]
 square_units = [cross(rs, cs) for rs in ('ABC', 'DEF', 'GHI') for cs in ('123', '456', '789')]
 unitlist = row_units + column_units + square_units
 
-# TODO: Update the unit list to add the new diagonal units
 diag1 = [rows[i] + cols[i] for i in range(len(rows))]
 diag2 = [rows[i] + cols[len(cols) - 1 - i] for i in range(len(rows))]
 unitlist = unitlist + [diag1, diag2]
@@ -25,50 +25,35 @@ Sudoku Solving Rules and Strategies:
 
 
 def naked_twins(values):
-    """Eliminate values using the naked twins strategy.
+    """Eliminate values using the naked twins strategy."""
 
-    The naked twins strategy says that if you have two or more unallocated boxes
-    in a unit and there are only two digits that can go in those two boxes, then
-    those two digits can be eliminated from the possible assignments of all other
-    boxes in the same unit.
+    def find_twins(box):
+        """Find all twins for a given box."""
+        return [peer for peer in peers[box]
+                if values[box] == values[peer] and len(values[box]) == 2]
 
-    Parameters
-    ----------
-    values(dict)
-        a dictionary of the form {'box_name': '123456789', ...}
+    def eliminate_from_peers(box, twin):
+        """Eliminate digits of the twin from the peers of both boxes."""
+        common_peers = set(peers[box]) & set(peers[twin])
+        digits = values[box]
+        return {peer: ''.join(d for d in values[peer] if d not in digits)
+                for peer in common_peers}
 
-    Returns
-    -------
-    dict
-        The values dictionary with the naked twins eliminated from peers
+    # Find all boxes with potential twins
+    potential_twins = filter(lambda box: len(values[box]) == 2, values)
 
-    Notes
-    -----
-    Your solution can either process all pairs of naked twins from the input once,
-    or it can continue processing pairs of naked twins until there are no such
-    pairs remaining -- the project assistant test suite will accept either
-    convention. However, it will not accept code that does not process all pairs
-    of naked twins from the original input. (For example, if you start processing
-    pairs of twins and eliminate another pair of twins before the second pair
-    is processed then your code will fail the PA test suite.)
+    # Find actual twins and their eliminations
+    eliminations = [eliminate_from_peers(box, twin)
+                    for box in potential_twins
+                    for twin in find_twins(box)]
 
-    The first convention is preferred for consistency with the other strategies,
-    and because it is simpler (since the reduce_puzzle function already calls this
-    strategy repeatedly).
+    # Merge all eliminations
+    merged_eliminations = {}
+    for elimination in eliminations:
+        merged_eliminations.update(elimination)
 
-    See Also
-    --------
-    Pseudocode for this algorithm on github:
-    https://github.com/udacity/artificial-intelligence/blob/master/Projects/1_Sudoku/pseudocode.md
-    """
-    out = values.copy()
-    for boxA in values:
-        for boxB in peers[boxA]:
-            if values[boxA] == values[boxB] and len(values[boxA]) == 2:
-                for peer in set(peers[boxA]) & set(peers[boxB]):
-                    for digit in values[boxA]:
-                        out[peer] = out[peer].replace(digit, '')
-    return out
+    # Apply eliminations to a copy of the input values
+    return {**values, **merged_eliminations}
 
 
 def eliminate(values):
@@ -120,58 +105,49 @@ def only_choice(values):
 
 
 def reduce_puzzle(values):
-    """Reduce a Sudoku puzzle by repeatedly applying all constraint strategies
+    """Reduce a Sudoku puzzle by repeatedly applying all constraint strategies"""
 
-    Parameters
-    ----------
-    values(dict)
-        a dictionary of the form {'box_name': '123456789', ...}
+    strategies = [eliminate, only_choice, naked_twins]
 
-    Returns
-    -------
-    dict or False
-        The values dictionary after continued application of the constraint strategies
-        no longer produces any changes, or False if the puzzle is unsolvable
-    """
-    stalled = False
-    while not stalled:
-        solved_values_before = len([box for box in values.keys() if len(values[box]) == 1])
-        values = eliminate(values)
-        values = only_choice(values)
-        values = naked_twins(values)
-        solved_values_after = len([box for box in values.keys() if len(values[box]) == 1])
-        stalled = solved_values_before == solved_values_after
-        if len([box for box in values.keys() if len(values[box]) == 0]):
-            return False
-    return values
+    def apply_strategy(vals, strategy):
+        return strategy(vals)
+
+    def count_solved_values(vals):
+        return sum(1 for box in vals if len(vals[box]) == 1)
+
+    while True:
+        solved_before = count_solved_values(values)
+        values = reduce(apply_strategy, strategies, values)
+
+        if not values or count_solved_values(values) == solved_before:
+            break
+
+    return values if all(len(val) > 0 for val in values.values()) else False
 
 
 def search(values):
-    """Apply depth first search to solve Sudoku puzzles in order to solve puzzles
-    that cannot be solved by repeated reduction alone.
+    """Apply depth first search to solve Sudoku puzzles"""
 
-    Parameters
-    ----------
-    values(dict)
-        a dictionary of the form {'box_name': '123456789', ...}
+    def find_min_possibilities(vals):
+        unsolved = ((len(vals[s]), s) for s in boxes if len(vals[s]) > 1)
+        return min(unsolved, key=lambda x: x[0])
 
-    Returns
-    -------
-    dict or False
-        The values dictionary with all boxes assigned or False
-    """
     values = reduce_puzzle(values)
-    if values is False:
+    if not values:
         return False
     if all(len(values[s]) == 1 for s in boxes):
         return values
-    n, s = min((len(values[s]), s) for s in boxes if len(values[s]) > 1)
-    for value in values[s]:
-        new_sudoku = values.copy()
-        new_sudoku[s] = value
-        attempt = search(new_sudoku)
-        if attempt:
-            return attempt
+
+    _, s = find_min_possibilities(values)
+
+    return next(filter(None, (search(assign_value(values.copy(), s, value))
+                              for value in values[s])), False)
+
+
+def assign_value(values, box, value):
+    """Assign a value to a box and propagate constraints"""
+    values[box] = value
+    return reduce_puzzle(values)
 
 
 def solve(grid):
