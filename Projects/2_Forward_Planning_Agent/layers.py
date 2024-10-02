@@ -37,8 +37,8 @@ def makeNoOp(literal):
     action, but the correct semantics are handled and enforced automatically.
     """
     action = Expr("NoOp::" + literal.op, literal.args)
-    return (Action(action, [set([literal]), []], [set([literal]), []]),
-            Action(~action, [set([~literal]), []], [set([~literal]), []]))
+    return (Action(action, [{literal}, []], [{literal}, []]),
+            Action(~action, [{~literal}, []], [{~literal}, []]))
 
 
 class ActionNode(object):
