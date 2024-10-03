@@ -1,4 +1,10 @@
 
+```textmate
+pypy3 run_search.py -p 1 2 -s 1 2 3 4 5 6 7 8 9 10 11
+
+pypy3 run_search.py -p 3 4 -s 3 4 5 8 9
+```
+
 ## Introduction
 Planning is an important topic in AI because intelligent agents are expected to automatically plan their own actions in uncertain domains. Planning and scheduling systems are commonly used in automation and logistics operations, robotics and self-driving cars, and for aerospace applications like the Hubble telescope and NASA Mars rovers.
 
